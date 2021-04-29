@@ -1,0 +1,70 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ template "dan-service-kitchen-sink.fullname" . }}
+  labels:
+    app: {{ template "dan-service-kitchen-sink.name" . }}
+    chart: {{ template "dan-service-kitchen-sink.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  annotations: # Annotation for the pod
+    {{- range $key, $val := .Values.deploy }}
+    {{ $key }}: {{ $val | quote }}
+    {{- end}}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "dan-service-kitchen-sink.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations: # Annotation for the pod
+        {{- range $key, $val := .Values.deploy }}
+        {{ $key }}: {{ $val | quote }}
+        {{- end}}
+      labels:
+        app: {{ template "dan-service-kitchen-sink.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: NODE_ENV
+              value: "{{ .Values.node_env }}"
+            - name: MONGO_URL
+              value: "{{ .Values.mongo_url }}"
+            - name: MONGO_TEST_URL
+              value: "{{ .Values.mongo_test_url }}"
+            - name: PORT
+              value: "{{ .Values.port }}"
+            - name: CORS_ORIGIN
+              value: "{{ .Values.cors_origin }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/health-check
+              port: {{ .Values.port }}
+          readinessProbe:
+            httpGet:
+              path: /api/health-check
+              port: {{ .Values.port }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
